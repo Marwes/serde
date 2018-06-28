@@ -47,10 +47,15 @@ deserialize_impl! {
     isize,
     f32,
     f64,
-    String,
     (),
     bool
 }
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+deserialize_impl! {
+    String
+}
+
 
 macro_rules! forwarded_impl {
     (( $($id: ident),* ), $ty: ty, $func: expr) => {
@@ -308,7 +313,7 @@ where
     }
 }
 
-#[cfg(any(feature = "std", feature = "collections"))]
+#[cfg(any(feature = "std", feature = "alloc"))]
 macro_rules! seq_impl {
     (
         $ty:ident < T $(: $tbound1:ident $(+ $tbound2:ident)*)* $(, $typaram:ident : $bound1:ident $(+ $bound2:ident)*)* >,
