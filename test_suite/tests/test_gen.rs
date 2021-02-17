@@ -4,7 +4,12 @@
 
 #![deny(warnings)]
 #![cfg_attr(feature = "unstable", feature(non_ascii_idents))]
-#![allow(clippy::trivially_copy_pass_by_ref)]
+#![allow(
+    unknown_lints,
+    mixed_script_confusables,
+    clippy::ptr_arg,
+    clippy::trivially_copy_pass_by_ref
+)]
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -265,7 +270,7 @@ fn test_gen() {
     #[cfg(feature = "unstable")]
     #[derive(Serialize, Deserialize)]
     struct NonAsciiIdents {
-        σ:  f64,
+        σ: f64,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -639,7 +644,7 @@ fn test_gen() {
 
     #[derive(Deserialize)]
     struct ImpliciltyBorrowedOption<'a> {
-        option: std::option::Option<&'a str>,
+        _option: std::option::Option<&'a str>,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -669,8 +674,8 @@ fn test_gen() {
 
     #[derive(Deserialize)]
     struct RelObject<'a> {
-        ty: &'a str,
-        id: String,
+        _ty: &'a str,
+        _id: String,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -690,6 +695,52 @@ fn test_gen() {
     struct FlattenSkipDeserializing<T> {
         #[serde(flatten, skip_deserializing)]
         flat: T,
+    }
+
+    // https://github.com/serde-rs/serde/issues/1804
+    #[derive(Serialize, Deserialize)]
+    enum Message {
+        #[serde(skip)]
+        #[allow(dead_code)]
+        String(String),
+        #[serde(other)]
+        Unknown,
+    }
+
+    #[derive(Serialize)]
+    #[repr(packed)]
+    struct Packed {
+        x: u8,
+        y: u16,
+    }
+
+    macro_rules! deriving {
+        ($field:ty) => {
+            #[derive(Deserialize)]
+            struct MacroRules<'a> {
+                _field: $field,
+            }
+        };
+    }
+
+    deriving!(&'a str);
+
+    macro_rules! mac {
+        ($($tt:tt)*) => {
+            $($tt)*
+        };
+    }
+
+    #[derive(Deserialize)]
+    struct BorrowLifetimeInsideMacro<'a> {
+        #[serde(borrow = "'a")]
+        _f: mac!(Cow<'a, str>),
+    }
+
+    #[derive(Serialize)]
+    struct Struct {
+        #[serde(serialize_with = "vec_first_element")]
+        vec: Vec<Self>,
     }
 }
 
@@ -763,4 +814,12 @@ where
 
 pub fn is_zero(n: &u8) -> bool {
     *n == 0
+}
+
+fn vec_first_element<T, S>(vec: &Vec<T>, serializer: S) -> StdResult<S::Ok, S::Error>
+where
+    T: Serialize,
+    S: Serializer,
+{
+    vec.first().serialize(serializer)
 }
